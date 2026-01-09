@@ -213,7 +213,7 @@ struct MenuBarView: View {
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Label("Quit Talk", systemImage: "power")
+                Label("Quit DictAI", systemImage: "power")
             }
             .buttonStyle(.plain)
             .keyboardShortcut("q", modifiers: .command)

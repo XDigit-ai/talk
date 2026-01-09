@@ -28,7 +28,7 @@ class WhisperState: ObservableObject {
 
     var modelURL: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let modelsDir = appSupport.appendingPathComponent("Talk/Models", isDirectory: true)
+        let modelsDir = appSupport.appendingPathComponent("DictAI/Models", isDirectory: true)
 
         // Create directory if needed
         try? FileManager.default.createDirectory(at: modelsDir, withIntermediateDirectories: true)

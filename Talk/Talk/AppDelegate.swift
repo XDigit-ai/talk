@@ -92,7 +92,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Talk Setup"
+            window.title = "DictAI Setup"
             window.center()
             window.identifier = NSUserInterfaceItemIdentifier("onboarding")
 

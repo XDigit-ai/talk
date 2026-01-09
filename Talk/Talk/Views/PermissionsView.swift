@@ -13,7 +13,7 @@ struct PermissionsView: View {
                     .font(.system(size: 60))
                     .foregroundStyle(.blue)
 
-                Text("Welcome to Talk")
+                Text("Welcome to DictAI")
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
@@ -26,7 +26,7 @@ struct PermissionsView: View {
 
             // Permissions
             VStack(alignment: .leading, spacing: 20) {
-                Text("Talk needs a few permissions to work:")
+                Text("DictAI needs a few permissions to work:")
                     .font(.headline)
 
                 // Microphone Permission

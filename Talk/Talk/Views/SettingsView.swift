@@ -67,7 +67,7 @@ struct GeneralSettingsTab: View {
 
             Section("Accessibility") {
                 Toggle("Show Dock icon", isOn: $appState.showDockIcon)
-                Text("Enable this if the menu bar icon is hidden behind the notch on your MacBook. The Dock icon provides an alternative way to access Talk.")
+                Text("Enable this if the menu bar icon is hidden behind the notch on your MacBook. The Dock icon provides an alternative way to access DictAI.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -535,36 +535,44 @@ struct PermissionsSettingsTab: View {
                     }
                 }
 
-                // Accessibility
-                HStack {
-                    Image(systemName: "accessibility")
-                        .foregroundStyle(permissionManager.accessibilityEnabled ? .green : .orange)
+                // Accessibility - only show in non-sandboxed mode
+                if !permissionManager.isSandboxed {
+                    HStack {
+                        Image(systemName: "accessibility")
+                            .foregroundStyle(permissionManager.accessibilityEnabled ? .green : .orange)
 
-                    VStack(alignment: .leading) {
-                        Text("Accessibility")
-                            .font(.headline)
-                        Text(permissionManager.accessibilityStatusText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    if !permissionManager.accessibilityEnabled {
-                        Button("Open Settings") {
-                            permissionManager.openAccessibilitySettings()
+                        VStack(alignment: .leading) {
+                            Text("Accessibility")
+                                .font(.headline)
+                            Text(permissionManager.accessibilityStatusText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                    } else {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+
+                        Spacer()
+
+                        if !permissionManager.accessibilityEnabled {
+                            Button("Open Settings") {
+                                permissionManager.openAccessibilitySettings()
+                            }
+                        } else {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
                     }
                 }
             }
 
             Section {
-                Text("Microphone access is required to record your voice. Accessibility access is required to paste text into other applications.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if permissionManager.isSandboxed {
+                    Text("Microphone access is required to record your voice. Transcribed text is copied to your clipboard - press ⌘V to paste.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Microphone access is required to record your voice. Accessibility access is required to auto-paste text into other applications.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section {

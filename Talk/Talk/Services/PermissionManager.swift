@@ -10,8 +10,17 @@ class PermissionManager: ObservableObject {
     @Published var microphoneStatus: AVAuthorizationStatus = .notDetermined
     @Published var accessibilityEnabled: Bool = false
 
+    /// Check if running in sandbox (App Store version)
+    var isSandboxed: Bool {
+        ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+    }
+
+    /// In sandboxed mode, accessibility is not needed (clipboard-only mode)
     var allPermissionsGranted: Bool {
-        microphoneStatus == .authorized && accessibilityEnabled
+        if isSandboxed {
+            return microphoneStatus == .authorized
+        }
+        return microphoneStatus == .authorized && accessibilityEnabled
     }
 
     private init() {

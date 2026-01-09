@@ -6,8 +6,12 @@
     <key>com.apple.security.app-sandbox</key>
     <false/>
 
-    <!-- Audio Input - Required for microphone access with Hardened Runtime -->
+    <!-- Audio Input - Required for microphone access -->
     <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- Outgoing Network - Required for Ollama (localhost) and cloud LLM APIs -->
+    <key>com.apple.security.network.client</key>
     <true/>
 </dict>
 </plist>

@@ -29,7 +29,7 @@ struct TalkApp: App {
         }
 
         // Hidden window for permissions onboarding (shown on first launch)
-        Window("Welcome to Talk", id: "onboarding") {
+        Window("Welcome to DictAI", id: "onboarding") {
             PermissionsView()
                 .environmentObject(permissionManager)
         }

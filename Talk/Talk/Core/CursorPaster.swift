@@ -1,8 +1,15 @@
 import AppKit
 import Carbon.HIToolbox
+import UserNotifications
 
 /// Pastes text at the current cursor position in any application
 class CursorPaster {
+
+    /// Check if the app is running in a sandboxed environment
+    static var isSandboxed: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["APP_SANDBOX_CONTAINER_ID"] != nil
+    }
 
     /// Paste text at the current cursor position
     /// - Parameters:
@@ -11,15 +18,21 @@ class CursorPaster {
     static func paste(_ text: String, preserveClipboard: Bool = true) {
         let pasteboard = NSPasteboard.general
 
-        // Save current clipboard if needed
+        // Save current clipboard if needed (only for non-sandboxed auto-paste)
         var savedItems: [(NSPasteboard.PasteboardType, Data)] = []
-        if preserveClipboard {
+        if preserveClipboard && !isSandboxed && AXIsProcessTrusted() {
             savedItems = saveClipboard()
         }
 
         // Set new text to clipboard
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+
+        // In sandboxed mode or without accessibility, just copy to clipboard and notify
+        if isSandboxed || !AXIsProcessTrusted() {
+            showClipboardNotification(text: text)
+            return
+        }
 
         // Small delay to ensure clipboard is ready
         usleep(50000)  // 50ms
@@ -33,6 +46,30 @@ class CursorPaster {
                 restoreClipboard(savedItems)
             }
         }
+    }
+
+    // MARK: - Notification for Clipboard Mode
+
+    private static func showClipboardNotification(text: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Text Ready to Paste"
+        content.body = "Press ⌘V to paste your transcription"
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil  // Immediate delivery
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Failed to show notification: \(error)")
+            }
+        }
+
+        // Also play a sound to indicate completion
+        NSSound.beep()
     }
 
     // MARK: - Keyboard Simulation
@@ -108,6 +145,11 @@ class PasteEligibilityService {
 
     /// Check if the currently focused element can accept pasted text
     static func canPaste() -> Bool {
+        // In sandboxed mode, we can't check - assume true
+        if CursorPaster.isSandboxed {
+            return true
+        }
+
         guard AXIsProcessTrusted() else {
             // If we don't have accessibility permission, assume we can paste
             // The paste will just fail silently if we can't
@@ -144,6 +186,11 @@ class PasteEligibilityService {
 
     /// Get the currently selected text (if any)
     static func getSelectedText() -> String? {
+        // In sandboxed mode, we can't access other apps' UI
+        if CursorPaster.isSandboxed {
+            return nil
+        }
+
         guard AXIsProcessTrusted() else { return nil }
 
         guard let frontApp = NSWorkspace.shared.frontmostApplication else {
