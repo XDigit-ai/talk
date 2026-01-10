@@ -308,21 +308,60 @@ struct EnhancementSettingsTab: View {
     private var ollamaSettingsSection: some View {
         Section("Ollama Status") {
             // Installation status
-            HStack {
-                Image(systemName: ollamaManager.isInstalled ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundStyle(ollamaManager.isInstalled ? .green : .red)
-                Text(ollamaManager.isInstalled ? "Ollama installed" : "Ollama not installed")
+            if ollamaManager.isInstallingOllama {
+                // Show installation progress
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text(ollamaManager.installStatus)
+                            .font(.callout)
+                    }
 
-                Spacer()
+                    ProgressView(value: ollamaManager.installProgress)
+
+                    Text("\(Int(ollamaManager.installProgress * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            } else {
+                HStack {
+                    Image(systemName: ollamaManager.isInstalled ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundStyle(ollamaManager.isInstalled ? .green : .red)
+                    Text(ollamaManager.isInstalled ? "Ollama installed" : "Ollama not installed")
+
+                    Spacer()
+
+                    if !ollamaManager.isInstalled {
+                        Button("Install Now") {
+                            Task {
+                                let success = await ollamaManager.installOllama()
+                                if success {
+                                    // Auto-download a model after installation
+                                }
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
 
                 if !ollamaManager.isInstalled {
-                    Link("Install", destination: URL(string: "https://ollama.com/download")!)
+                    Text("Click 'Install Now' to automatically download and set up Ollama. No terminal required!")
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button("Or download manually...") {
+                        ollamaManager.openOllamaDownloadPage()
+                    }
+                    .font(.caption)
+                    .buttonStyle(.link)
                 }
             }
 
             // Running status
-            if ollamaManager.isInstalled {
+            if ollamaManager.isInstalled && !ollamaManager.isInstallingOllama {
                 HStack {
                     Image(systemName: ollamaManager.isRunning ? "bolt.circle.fill" : "bolt.slash.circle")
                         .foregroundStyle(ollamaManager.isRunning ? .green : .orange)

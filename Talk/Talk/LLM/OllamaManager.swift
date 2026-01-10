@@ -17,6 +17,11 @@ class OllamaManager: ObservableObject {
     @Published var downloadingModel: String?
     @Published var lastError: String?
 
+    // Installation state
+    @Published var isInstallingOllama = false
+    @Published var installProgress: Double = 0
+    @Published var installStatus: String = ""
+
     // Popular models for text enhancement
     static let recommendedModels: [RecommendedModel] = [
         RecommendedModel(name: "qwen2.5:3b", size: "1.9 GB", description: "Excellent for text tasks, fast"),
@@ -26,10 +31,14 @@ class OllamaManager: ObservableObject {
         RecommendedModel(name: "llama3.2", size: "2.0 GB", description: "Meta, good all-around")
     ]
 
+    // Ollama download URL
+    private let ollamaDownloadURL = "https://ollama.com/download/Ollama-darwin.zip"
+    private let ollamaAppPath = "/Applications/Ollama.app"
+
     private var ollamaProcess: Process?
     private let ollamaPaths = [
+        "/usr/local/bin/ollama",  // Ollama.app installs here
         "/opt/homebrew/bin/ollama",
-        "/usr/local/bin/ollama",
         "/usr/bin/ollama"
     ]
 
@@ -43,6 +52,11 @@ class OllamaManager: ObservableObject {
     // MARK: - Installation Check
 
     func checkInstallation() async {
+        // Check for Ollama.app first (most common for GUI users)
+        if FileManager.default.fileExists(atPath: ollamaAppPath) {
+            isInstalled = true
+            return
+        }
         isInstalled = findOllamaPath() != nil
     }
 
@@ -74,6 +88,140 @@ class OllamaManager: ObservableObject {
         return nil
     }
 
+    // MARK: - One-Click Installation
+
+    /// Downloads and installs Ollama automatically
+    func installOllama() async -> Bool {
+        guard !isInstallingOllama else { return false }
+
+        isInstallingOllama = true
+        installProgress = 0
+        installStatus = "Preparing download..."
+        lastError = nil
+
+        defer {
+            isInstallingOllama = false
+        }
+
+        do {
+            // Step 1: Download Ollama zip
+            installStatus = "Downloading Ollama..."
+            guard let downloadURL = URL(string: ollamaDownloadURL) else {
+                lastError = "Invalid download URL"
+                return false
+            }
+
+            let tempDir = FileManager.default.temporaryDirectory
+            let zipPath = tempDir.appendingPathComponent("Ollama-darwin.zip")
+            let extractPath = tempDir.appendingPathComponent("Ollama-extract")
+
+            // Clean up any previous download
+            try? FileManager.default.removeItem(at: zipPath)
+            try? FileManager.default.removeItem(at: extractPath)
+
+            // Download with progress tracking
+            let (localURL, _) = try await downloadWithProgress(from: downloadURL, to: zipPath)
+
+            installProgress = 0.5
+            installStatus = "Extracting..."
+
+            // Step 2: Unzip
+            let unzipProcess = Process()
+            unzipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+            unzipProcess.arguments = ["-o", "-q", localURL.path, "-d", extractPath.path]
+            unzipProcess.standardOutput = FileHandle.nullDevice
+            unzipProcess.standardError = FileHandle.nullDevice
+
+            try unzipProcess.run()
+            unzipProcess.waitUntilExit()
+
+            guard unzipProcess.terminationStatus == 0 else {
+                lastError = "Failed to extract Ollama"
+                return false
+            }
+
+            installProgress = 0.7
+            installStatus = "Installing..."
+
+            // Step 3: Move to Applications
+            let extractedApp = extractPath.appendingPathComponent("Ollama.app")
+            let destinationApp = URL(fileURLWithPath: ollamaAppPath)
+
+            // Remove existing installation if present
+            if FileManager.default.fileExists(atPath: ollamaAppPath) {
+                try FileManager.default.removeItem(at: destinationApp)
+            }
+
+            try FileManager.default.moveItem(at: extractedApp, to: destinationApp)
+
+            installProgress = 0.85
+            installStatus = "Launching Ollama..."
+
+            // Step 4: Launch Ollama.app (this starts the background service)
+            try await NSWorkspace.shared.openApplication(
+                at: destinationApp,
+                configuration: NSWorkspace.OpenConfiguration()
+            )
+
+            // Wait for Ollama to start
+            for _ in 0..<20 {
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                await checkStatus()
+                if isRunning {
+                    break
+                }
+            }
+
+            installProgress = 1.0
+            installStatus = "Installation complete!"
+
+            // Update state
+            await checkInstallation()
+
+            // Clean up temp files
+            try? FileManager.default.removeItem(at: zipPath)
+            try? FileManager.default.removeItem(at: extractPath)
+
+            return isInstalled
+
+        } catch {
+            lastError = "Installation failed: \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    /// Downloads a file with progress tracking
+    private func downloadWithProgress(from url: URL, to destination: URL) async throws -> (URL, URLResponse) {
+        let (asyncBytes, response) = try await URLSession.shared.bytes(from: url)
+
+        let expectedLength = response.expectedContentLength
+        var data = Data()
+        data.reserveCapacity(expectedLength > 0 ? Int(expectedLength) : 100_000_000)
+
+        var downloadedBytes: Int64 = 0
+
+        for try await byte in asyncBytes {
+            data.append(byte)
+            downloadedBytes += 1
+
+            // Update progress every 100KB
+            if downloadedBytes % 102400 == 0 && expectedLength > 0 {
+                let progress = Double(downloadedBytes) / Double(expectedLength)
+                installProgress = progress * 0.5 // Download is 50% of total progress
+            }
+        }
+
+        try data.write(to: destination)
+        return (destination, response)
+    }
+
+    /// Opens the Ollama download page in browser (fallback)
+    func openOllamaDownloadPage() {
+        if let url = URL(string: "https://ollama.com/download") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     // MARK: - Status Check
 
     func checkStatus() async {
@@ -101,15 +249,43 @@ class OllamaManager: ObservableObject {
     // MARK: - Auto-Launch
 
     func startOllama() async -> Bool {
-        guard let ollamaPath = findOllamaPath() else {
-            lastError = "Ollama not found. Please install it first."
-            return false
-        }
-
         // Check if already running
         await checkStatus()
         if isRunning {
             return true
+        }
+
+        // Try launching Ollama.app first (most common for GUI users)
+        if FileManager.default.fileExists(atPath: ollamaAppPath) {
+            let appURL = URL(fileURLWithPath: ollamaAppPath)
+            do {
+                try await NSWorkspace.shared.openApplication(
+                    at: appURL,
+                    configuration: NSWorkspace.OpenConfiguration()
+                )
+            } catch {
+                lastError = "Failed to launch Ollama: \(error.localizedDescription)"
+                return false
+            }
+
+            // Wait for it to start (up to 15 seconds)
+            for _ in 0..<30 {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                await checkStatus()
+                if isRunning {
+                    return true
+                }
+            }
+
+            // Ollama.app launched but not responding yet, might still be initializing
+            lastError = "Ollama is starting up. Please try again in a moment."
+            return false
+        }
+
+        // Fall back to CLI binary
+        guard let ollamaPath = findOllamaPath() else {
+            lastError = "Ollama not found. Please install it first."
+            return false
         }
 
         // Start ollama serve in background
