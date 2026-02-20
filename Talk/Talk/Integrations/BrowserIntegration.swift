@@ -148,7 +148,7 @@ class BrowserIntegration: AppIntegration {
         return nil
     }
 
-    private func appNameForBundleId(_ bid: String) -> String {
+    func appNameForBundleId(_ bid: String) -> String {
         switch bid {
         case "com.google.Chrome": return "Google Chrome"
         case "com.brave.Browser": return "Brave Browser"

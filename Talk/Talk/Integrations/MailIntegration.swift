@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 @MainActor
 class MailIntegration: AppIntegration {
@@ -8,9 +9,7 @@ class MailIntegration: AppIntegration {
     let displayName = "Mail"
     let supportedActions: [ActionType] = [.reply, .create, .summarize]
 
-    var isAvailable: Bool {
-        FileManager.default.fileExists(atPath: "/System/Applications/Mail.app")
-    }
+    var isAvailable: Bool { true }  // We always have a way to send email (Gmail, mailto:, etc.)
 
     private init() {}
 
@@ -19,6 +18,13 @@ class MailIntegration: AppIntegration {
     func execute(intent: VoiceIntent, context: AppContext) async throws -> ActionResult {
         switch intent.action {
         case .reply:
+            // If we have a "to" parameter, this is a new email (e.g. "draft email to Krista")
+            if let to = intent.parameters["to"], !to.isEmpty {
+                let body = intent.parameters["body"] ?? intent.content
+                let subject = intent.parameters["subject"] ?? ""
+                return try await composeNew(to: to, subject: subject, body: body)
+            }
+            // Otherwise reply to the selected email in Mail
             return try await replyToSelected(body: intent.content)
 
         case .create:
@@ -40,6 +46,39 @@ class MailIntegration: AppIntegration {
     func readContext() async throws -> [String: String] {
         guard let info = try await getSelectedEmailInfo() else { return [:] }
         return info
+    }
+
+    // MARK: - Email Delivery Strategy
+
+    /// Determines the best way to compose an email:
+    /// 1. If Gmail is open in a browser tab → use Gmail compose URL
+    /// 2. Otherwise → use mailto: URL (opens the user's default mail app, e.g. Spark)
+    private enum ComposeStrategy {
+        case gmail(browserBundleId: String)
+        case defaultMailApp
+    }
+
+    private func detectComposeStrategy() -> ComposeStrategy {
+        // Check running browsers for Gmail tabs
+        let browserBundleIds = [
+            "com.google.Chrome",
+            "com.brave.Browser",
+            "com.apple.Safari",
+            "com.microsoft.edgemac",
+            "com.vivaldi.Vivaldi"
+        ]
+
+        for bid in browserBundleIds {
+            guard NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == bid }) else {
+                continue
+            }
+            if let url = BrowserIntegration.shared.getCurrentURL(bundleId: bid),
+               url.contains("mail.google.com") {
+                return .gmail(browserBundleId: bid)
+            }
+        }
+
+        return .defaultMailApp
     }
 
     // MARK: - Mail Actions
@@ -74,14 +113,6 @@ class MailIntegration: AppIntegration {
 
     /// Reply to the currently selected email with the given body text.
     func replyToSelected(body: String) async throws -> ActionResult {
-        guard isAvailable else {
-            return .failure(ActionFailure(
-                message: "Mail.app is not available",
-                isRecoverable: false,
-                suggestion: "Make sure Mail.app is installed"
-            ))
-        }
-
         // Enhance the body text for email formatting
         let enhancedBody = try await AIEnhancementService.shared.enhance(
             body,
@@ -118,31 +149,83 @@ class MailIntegration: AppIntegration {
         ))
     }
 
-    /// Compose a new email.
+    /// Compose a new email. Checks for Gmail in browser first, then falls back to default mail app.
     func composeNew(to: String, subject: String, body: String) async throws -> ActionResult {
-        guard isAvailable else {
+        // Use LLM to draft a proper email from the voice description
+        var emailBody = body
+        var emailSubject = subject
+        if AIEnhancementService.shared.isConfigured && !body.isEmpty {
+            let prompt = """
+            Draft a professional email based on this voice description. The recipient is \(to).
+            Return ONLY the email body text (no subject line, no "Subject:", no greeting prefix like "Email:").
+            Keep it concise and natural.
+            """
+            emailBody = try await AIEnhancementService.shared.enhance(body, prompt: prompt)
+        }
+
+        if emailSubject.isEmpty && !emailBody.isEmpty {
+            if AIEnhancementService.shared.isConfigured {
+                let subjectPrompt = "Generate a short email subject line (max 8 words) for this email. Return ONLY the subject line, nothing else."
+                emailSubject = try await AIEnhancementService.shared.enhance(emailBody, prompt: subjectPrompt)
+            }
+        }
+
+        let strategy = detectComposeStrategy()
+
+        switch strategy {
+        case .gmail(let browserBundleId):
+            return try await composeViaGmail(to: to, subject: emailSubject, body: emailBody, browserBundleId: browserBundleId)
+        case .defaultMailApp:
+            return composeViaMailto(to: to, subject: emailSubject, body: emailBody)
+        }
+    }
+
+    /// Compose via Gmail in the browser that already has it open.
+    private func composeViaGmail(to: String, subject: String, body: String, browserBundleId: String) async throws -> ActionResult {
+        var components = URLComponents(string: "https://mail.google.com/mail/")!
+        components.queryItems = [
+            URLQueryItem(name: "view", value: "cm"),
+            URLQueryItem(name: "to", value: to),
+            URLQueryItem(name: "su", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+
+        guard let url = components.url else {
+            return composeViaMailto(to: to, subject: subject, body: body)
+        }
+
+        let appName = BrowserIntegration.shared.appNameForBundleId(browserBundleId)
+        let script = "tell application \"\(appName)\" to open location \"\(url.absoluteString.escapedForAppleScript)\""
+        try await AppleScriptBridge.execute(script)
+
+        return .success(ActionSuccess(
+            message: "Email drafted to \(to) in Gmail",
+            metadata: ["to": to, "subject": subject, "via": "gmail"]
+        ))
+    }
+
+    /// Compose via mailto: URL — opens the user's default mail app (Spark, Outlook, etc.)
+    private func composeViaMailto(to: String, subject: String, body: String) -> ActionResult {
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = to
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+
+        guard let url = components.url else {
             return .failure(ActionFailure(
-                message: "Mail.app is not available",
+                message: "Could not create email URL",
                 isRecoverable: false
             ))
         }
 
-        let script = """
-        tell application "Mail"
-            set newMsg to make new outgoing message with properties {subject:"\(subject.escapedForAppleScript)", content:"\(body.escapedForAppleScript)", visible:true}
-            if "\(to.escapedForAppleScript)" is not "" then
-                tell newMsg
-                    make new to recipient at end of to recipients with properties {address:"\(to.escapedForAppleScript)"}
-                end tell
-            end if
-            activate
-        end tell
-        """
+        NSWorkspace.shared.open(url)
 
-        try await AppleScriptBridge.execute(script)
         return .success(ActionSuccess(
-            message: "New email composed",
-            metadata: ["to": to, "subject": subject]
+            message: "Email drafted to \(to)",
+            metadata: ["to": to, "subject": subject, "via": "default_mail_app"]
         ))
     }
 

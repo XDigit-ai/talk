@@ -14,6 +14,8 @@ class HeuristicClassifier {
         let definitions: [(String, ActionType)] = [
             ("^(?:search|look up|find|google)\\s+(?:for\\s+)?(.+)", .search),
             ("^(?:open|launch|start|switch to)\\s+(.+)", .open),
+            ("^(?:draft|write|compose|send)\\s+(?:an?\\s+)?(?:email|mail|message)\\s+(?:to\\s+)?(.+)", .reply),
+            ("^(?:email|mail)\\s+(.+)", .reply),
             ("^(?:reply|respond|answer)\\s+(?:saying|with|that)?\\s*(.+)", .reply),
             ("^(?:create|make|new|add)\\s+(?:a\\s+)?(.+)", .create),
             ("^(?:summarize|sum up|give me a summary|tldr)\\s*(.+)?", .summarize),
@@ -49,7 +51,7 @@ class HeuristicClassifier {
             return VoiceIntent(
                 action: pattern.action,
                 target: extractTarget(for: pattern.action, from: content),
-                parameters: [:],
+                parameters: extractParameters(for: pattern.action, from: content, rawText: trimmed),
                 content: content,
                 rawText: text,
                 confidence: 0.8
@@ -80,5 +82,44 @@ class HeuristicClassifier {
         case .dictate:
             return nil
         }
+    }
+
+    private func extractParameters(for action: ActionType, from content: String, rawText: String) -> [String: String] {
+        var params: [String: String] = [:]
+        let lower = rawText.lowercased()
+
+        // Detect email-related intents
+        let emailKeywords = ["email", "mail", "draft", "compose"]
+        if emailKeywords.contains(where: { lower.contains($0) }) {
+            params["medium"] = "email"
+
+            // Extract recipient: "email to Krista about project" → to="Krista", content after "about/saying/that"
+            if let toRange = lower.range(of: "to ") {
+                let afterTo = String(rawText[toRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+                // Split on "about", "saying", "that", "regarding"
+                let separators = [" about ", " saying ", " that ", " regarding ", " with "]
+                var recipient = afterTo
+                var body = ""
+                for sep in separators {
+                    if let sepRange = afterTo.lowercased().range(of: sep) {
+                        recipient = String(afterTo[..<sepRange.lowerBound])
+                        body = String(afterTo[sepRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+                        break
+                    }
+                }
+                params["to"] = recipient.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !body.isEmpty {
+                    params["body"] = body
+                }
+            }
+        }
+
+        // Detect message-related intents
+        let messageKeywords = ["text", "imessage", "message"]
+        if messageKeywords.contains(where: { lower.contains($0) }) {
+            params["medium"] = "message"
+        }
+
+        return params
     }
 }

@@ -39,6 +39,13 @@ class ActionRouter {
             return try await integration.execute(intent: intent, context: context)
         }
 
+        // Check if the intent targets a specific app via parameters (e.g. "email to Krista")
+        if let targetIntegration = resolveTargetIntegration(for: intent),
+           targetIntegration.isAvailable,
+           targetIntegration.supportedActions.contains(intent.action) {
+            return try await targetIntegration.execute(intent: intent, context: context)
+        }
+
         // Fall back to generic action handlers
         guard let handler = handlers[intent.action] else {
             return .failure(ActionFailure(
@@ -48,5 +55,31 @@ class ActionRouter {
         }
 
         return try await handler.execute(intent: intent, context: context)
+    }
+
+    /// Determine if the intent should be routed to a specific integration
+    /// based on keywords/parameters, regardless of the frontmost app.
+    private func resolveTargetIntegration(for intent: VoiceIntent) -> AppIntegration? {
+        let medium = intent.parameters["medium"] ?? ""
+
+        switch medium {
+        case "email":
+            return integrations["com.apple.mail"]
+        case "message":
+            return integrations["com.apple.MobileSMS"]
+        default:
+            break
+        }
+
+        // Also check raw text for email/message keywords as fallback
+        let lower = intent.rawText.lowercased()
+        if lower.contains("email") || lower.contains("mail") {
+            return integrations["com.apple.mail"]
+        }
+        if lower.contains("imessage") || lower.contains("text message") {
+            return integrations["com.apple.MobileSMS"]
+        }
+
+        return nil
     }
 }
