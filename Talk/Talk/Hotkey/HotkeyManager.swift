@@ -7,16 +7,16 @@ import Combine
 class HotkeyManager: ObservableObject {
     static let shared = HotkeyManager()
 
-    // Settings - Two hotkeys for different modes
+    // Settings - Two hotkeys: Simple dictation and Agent (voice-to-action)
     @Published var simpleHotkey: HotkeyType {
         didSet {
             UserDefaults.standard.set(simpleHotkey.rawValue, forKey: "simpleHotkey")
         }
     }
 
-    @Published var advancedHotkey: HotkeyType {
+    @Published var agentHotkey: HotkeyType {
         didSet {
-            UserDefaults.standard.set(advancedHotkey.rawValue, forKey: "advancedHotkey")
+            UserDefaults.standard.set(agentHotkey.rawValue, forKey: "agentHotkey")
         }
     }
 
@@ -40,11 +40,11 @@ class HotkeyManager: ObservableObject {
             self.simpleHotkey = .rightCommand
         }
 
-        if let savedValue = UserDefaults.standard.string(forKey: "advancedHotkey"),
+        if let savedValue = UserDefaults.standard.string(forKey: "agentHotkey"),
            let hotkey = HotkeyType(rawValue: savedValue) {
-            self.advancedHotkey = hotkey
+            self.agentHotkey = hotkey
         } else {
-            self.advancedHotkey = .rightOption
+            self.agentHotkey = .rightOption
         }
 
         // Observe UserDefaults changes for sync across instances
@@ -57,10 +57,10 @@ class HotkeyManager: ObservableObject {
                    hotkey != self.simpleHotkey {
                     self.simpleHotkey = hotkey
                 }
-                if let savedValue = UserDefaults.standard.string(forKey: "advancedHotkey"),
+                if let savedValue = UserDefaults.standard.string(forKey: "agentHotkey"),
                    let hotkey = HotkeyType(rawValue: savedValue),
-                   hotkey != self.advancedHotkey {
-                    self.advancedHotkey = hotkey
+                   hotkey != self.agentHotkey {
+                    self.agentHotkey = hotkey
                 }
             }
             .store(in: &cancellables)
@@ -99,10 +99,10 @@ class HotkeyManager: ObservableObject {
 
         // Check both hotkeys
         let simplePressed = isHotkeyActive(hotkey: simpleHotkey, flags: flags, keyCode: keyCode)
-        let advancedPressed = isHotkeyActive(hotkey: advancedHotkey, flags: flags, keyCode: keyCode)
+        let agentPressed = isHotkeyActive(hotkey: agentHotkey, flags: flags, keyCode: keyCode)
 
-        // Determine which mode's hotkey is active (simple takes priority if both somehow pressed)
-        let newMode: ProcessingMode? = simplePressed ? .simple : (advancedPressed ? .advanced : nil)
+        // Determine which mode's hotkey is active (simple takes priority, then agent)
+        let newMode: ProcessingMode? = simplePressed ? .simple : (agentPressed ? .agent : nil)
         let isPressed = newMode != nil
 
         if isPressed != isHotkeyPressed || (isPressed && newMode != activeHotkeyMode) {

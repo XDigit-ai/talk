@@ -32,7 +32,7 @@ struct MiniRecorderView: View {
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(activeMode == .advanced ? Color.purple.opacity(0.3) : Color.gray.opacity(0.2))
+                    .background(modeColor(activeMode))
                     .cornerRadius(4)
 
                 Spacer()
@@ -54,6 +54,14 @@ struct MiniRecorderView: View {
         .background(.ultraThinMaterial)
         .cornerRadius(16)
         .shadow(radius: 10)
+    }
+
+    private func modeColor(_ mode: ProcessingMode) -> Color {
+        switch mode {
+        case .simple: return Color.gray.opacity(0.2)
+        case .advanced: return Color.purple.opacity(0.3)
+        case .agent: return Color.blue.opacity(0.3)
+        }
     }
 }
 

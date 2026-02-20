@@ -5,6 +5,7 @@ import Combine
 enum ProcessingMode: String, CaseIterable, Codable {
     case simple = "Simple"
     case advanced = "Advanced"
+    case agent = "Agent"
 
     var description: String {
         switch self {
@@ -12,6 +13,8 @@ enum ProcessingMode: String, CaseIterable, Codable {
             return "Basic cleanup - removes filler words and repeated words"
         case .advanced:
             return "LLM enhancement - grammar, punctuation, and structure"
+        case .agent:
+            return "Voice-to-action - execute commands across apps"
         }
     }
 
@@ -21,6 +24,8 @@ enum ProcessingMode: String, CaseIterable, Codable {
             return "wand.and.rays"
         case .advanced:
             return "sparkles"
+        case .agent:
+            return "brain"
         }
     }
 }
@@ -204,6 +209,27 @@ class AppState: ObservableObject {
                 }
                 processingStatus = "Enhancing with AI..."
                 processedText = try await AIEnhancementService.shared.enhance(transcription)
+            case .agent:
+                // Route to Agent Pipeline
+                processingStatus = "Classifying intent..."
+                let result = try await AgentPipeline.shared.process(transcription: transcription)
+                switch result {
+                case .success(let success):
+                    if let text = success.resultText, success.shouldPaste {
+                        processedText = text
+                    } else {
+                        // Action completed without text output (e.g., opened an app)
+                        lastProcessedText = success.message
+                        processingStatus = ""
+                        isProcessing = false
+                        currentSessionMode = nil
+                        if playSoundFeedback { SoundManager.shared.playSuccessSound() }
+                        try? FileManager.default.removeItem(at: url)
+                        return
+                    }
+                case .failure(let failure):
+                    throw NSError(domain: "Agent", code: 1, userInfo: [NSLocalizedDescriptionKey: failure.message])
+                }
             }
 
             lastProcessedText = processedText

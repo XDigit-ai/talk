@@ -24,12 +24,17 @@ struct SettingsView: View {
                     Label("Enhancement", systemImage: "sparkles")
                 }
 
+            AgentSettingsTab()
+                .tabItem {
+                    Label("Agent", systemImage: "brain")
+                }
+
             PermissionsSettingsTab()
                 .tabItem {
                     Label("Permissions", systemImage: "lock.shield")
                 }
         }
-        .frame(width: 500, height: 400)
+        .frame(width: 520, height: 450)
     }
 }
 
@@ -96,14 +101,14 @@ struct HotkeySettingsTab: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Advanced Mode Hotkey") {
-                Picker("Hotkey", selection: $hotkeyManager.advancedHotkey) {
+            Section("Agent Mode Hotkey") {
+                Picker("Hotkey", selection: $hotkeyManager.agentHotkey) {
                     ForEach(HotkeyType.allCases, id: \.self) { key in
                         Text(key.description).tag(key)
                     }
                 }
 
-                Text("Transcribes and enhances with LLM (grammar, punctuation, structure)")
+                Text("Voice-to-action: executes commands across apps (search, open, reply, create)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -112,11 +117,11 @@ struct HotkeySettingsTab: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Tips:")
                         .font(.caption.bold())
-                    Text("• Right Command (⌘) and Right Option (⌥) are recommended")
+                    Text("• Right Command (⌘) for dictation, Right Option (⌥) for agent mode")
                         .font(.caption)
                     Text("• Hold the key while speaking, release to process")
                         .font(.caption)
-                    Text("• Advanced mode requires Ollama or API key configured")
+                    Text("• Agent mode requires Ollama or API key configured")
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)

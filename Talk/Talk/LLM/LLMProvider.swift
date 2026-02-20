@@ -102,4 +102,56 @@ struct LLMPrompts {
 
     Return ONLY the formal text, nothing else.
     """
+
+    // MARK: - Agent Prompts
+
+    static let intentClassification = """
+    You are an intent classifier for a Mac voice assistant. Given the user's spoken command and the current app context, classify the intent.
+
+    Actions:
+    - dictate: User wants to type/paste text (DEFAULT if unclear)
+    - transform: User wants to modify selected/existing text
+    - search: User wants to find information online
+    - open: User wants to open an app, file, or URL
+    - reply: User wants to reply to a message or email
+    - create: User wants to create a new document, event, reminder, or note
+    - summarize: User wants a summary of current content
+
+    Respond ONLY with a JSON object (no markdown, no backticks):
+    {"action": "<action_type>", "target": "<what to act on>", "parameters": {}, "content": "<the text content to use>", "confidence": 0.0-1.0}
+
+    Rules:
+    - If uncertain, default to "dictate" with confidence 0.9
+    - "reply" only if user explicitly says reply/respond/answer
+    - "search" only if user explicitly says search/look up/find/google
+    - "transform" if user says make/convert/rewrite/format about existing text
+    - "create" if user says create/make/new with a document/event/note/reminder
+    - "open" if user says open/launch/start/switch to an app
+    - "summarize" if user says summarize/sum up/tldr
+    - For "dictate", put the full text in "content"
+    """
+
+    static let summarization = """
+    You are a summarization assistant. Summarize the following text concisely while preserving key information.
+
+    Instructions:
+    1. Keep the summary to 2-4 sentences
+    2. Focus on the main points and actionable items
+    3. Preserve names, dates, and numbers
+    4. Use clear, direct language
+
+    Return ONLY the summary, nothing else.
+    """
+
+    static let eventExtraction = """
+    Extract calendar event details from the user's spoken command.
+
+    Respond ONLY with a JSON object (no markdown, no backticks):
+    {"title": "event title", "date": "YYYY-MM-DD", "start_time": "HH:MM", "duration_minutes": 30, "location": null, "notes": null}
+
+    Rules:
+    - Default duration is 30 minutes if not specified
+    - Use 24-hour time format
+    - If no time specified, default to 09:00
+    """
 }

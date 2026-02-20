@@ -40,6 +40,29 @@
 		41EE35342EFC770E00E886B4 /* DictAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DictAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		41EE35412EFC770F00E886B4 /* TalkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TalkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		41EE354B2EFC770F00E886B4 /* TalkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TalkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		181A6C30434948BFA000597A /* VoiceIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceIntent.swift; sourceTree = "<group>"; };
+		A539CCE92507477D9A75F3AC /* ActionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionResult.swift; sourceTree = "<group>"; };
+		E92310479F354DB6A3E9EDE0 /* ActionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRouter.swift; sourceTree = "<group>"; };
+		C12DB3E8E53C46069C4FC3F1 /* AgentPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPipeline.swift; sourceTree = "<group>"; };
+		9B25D2D2E1924546B5F109DA /* WorkflowEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowEngine.swift; sourceTree = "<group>"; };
+		F39BA2AD40174F3981A611E3 /* ActionProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionProtocol.swift; sourceTree = "<group>"; };
+		6821123166744590BA87475B /* DictateAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictateAction.swift; sourceTree = "<group>"; };
+		E4D09A6FA7CC4343B1616959 /* TransformAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformAction.swift; sourceTree = "<group>"; };
+		63E50C609DE44E849EA561C3 /* SearchAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchAction.swift; sourceTree = "<group>"; };
+		5160E1C8F9FD48FC87DCFF06 /* OpenAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAction.swift; sourceTree = "<group>"; };
+		6CCB8CD22A524BA1A45351F8 /* ReplyAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyAction.swift; sourceTree = "<group>"; };
+		E73AE3D4BCF94E23B9DE8D61 /* SummarizeAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizeAction.swift; sourceTree = "<group>"; };
+		E0CF1B7777994147A59C38AE /* CreateAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateAction.swift; sourceTree = "<group>"; };
+		C396F71DD5094557B975F1FE /* AppContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContext.swift; sourceTree = "<group>"; };
+		7F7ACBFE56EA474287C6D393 /* ContextReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextReader.swift; sourceTree = "<group>"; };
+		321D847DE3924393B6FA75C6 /* IntentClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentClassifier.swift; sourceTree = "<group>"; };
+		C386F2F0A4BE4C09A4BFBFF8 /* HeuristicClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeuristicClassifier.swift; sourceTree = "<group>"; };
+		07E1224AAF5A42F7BC5548BC /* AppleScriptBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptBridge.swift; sourceTree = "<group>"; };
+		8A32726AE96042F99E4022D3 /* BrowserIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserIntegration.swift; sourceTree = "<group>"; };
+		D8074C587B5B4A018D42EED0 /* MailIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailIntegration.swift; sourceTree = "<group>"; };
+		9ED7CDA7428941B88954E54D /* NotesIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesIntegration.swift; sourceTree = "<group>"; };
+		0E995CC896FE424E9FC06A09 /* CalendarIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarIntegration.swift; sourceTree = "<group>"; };
+		F064F72AE7B44FF08528A74A /* AgentFeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFeedbackView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -119,6 +142,71 @@
 				41EE354B2EFC770F00E886B4 /* TalkUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4CF61FDB14024F47B06C0806 /* Agent */ = {
+			isa = PBXGroup;
+			children = (
+				181A6C30434948BFA000597A /* VoiceIntent.swift */,
+				A539CCE92507477D9A75F3AC /* ActionResult.swift */,
+				E92310479F354DB6A3E9EDE0 /* ActionRouter.swift */,
+				C12DB3E8E53C46069C4FC3F1 /* AgentPipeline.swift */,
+				9B25D2D2E1924546B5F109DA /* WorkflowEngine.swift */,
+			);
+			path = Agent;
+			sourceTree = "<group>";
+		};
+		4233D94CD80A4CE5A5387B39 /* Actions */ = {
+			isa = PBXGroup;
+			children = (
+				F39BA2AD40174F3981A611E3 /* ActionProtocol.swift */,
+				6821123166744590BA87475B /* DictateAction.swift */,
+				E4D09A6FA7CC4343B1616959 /* TransformAction.swift */,
+				63E50C609DE44E849EA561C3 /* SearchAction.swift */,
+				5160E1C8F9FD48FC87DCFF06 /* OpenAction.swift */,
+				6CCB8CD22A524BA1A45351F8 /* ReplyAction.swift */,
+				E73AE3D4BCF94E23B9DE8D61 /* SummarizeAction.swift */,
+				E0CF1B7777994147A59C38AE /* CreateAction.swift */,
+			);
+			path = Actions;
+			sourceTree = "<group>";
+		};
+		52339DFA50A846D0A73A885E /* Context */ = {
+			isa = PBXGroup;
+			children = (
+				C396F71DD5094557B975F1FE /* AppContext.swift */,
+				7F7ACBFE56EA474287C6D393 /* ContextReader.swift */,
+			);
+			path = Context;
+			sourceTree = "<group>";
+		};
+		AC95E6352EF4488D8AF19261 /* Processing */ = {
+			isa = PBXGroup;
+			children = (
+				321D847DE3924393B6FA75C6 /* IntentClassifier.swift */,
+				C386F2F0A4BE4C09A4BFBFF8 /* HeuristicClassifier.swift */,
+			);
+			path = Processing;
+			sourceTree = "<group>";
+		};
+		CC934E135E904173BABA343A /* Integrations */ = {
+			isa = PBXGroup;
+			children = (
+				07E1224AAF5A42F7BC5548BC /* AppleScriptBridge.swift */,
+				8A32726AE96042F99E4022D3 /* BrowserIntegration.swift */,
+				D8074C587B5B4A018D42EED0 /* MailIntegration.swift */,
+				9ED7CDA7428941B88954E54D /* NotesIntegration.swift */,
+				0E995CC896FE424E9FC06A09 /* CalendarIntegration.swift */,
+			);
+			path = Integrations;
+			sourceTree = "<group>";
+		};
+		A3FD7AB9A88541DF8EA36F22 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F064F72AE7B44FF08528A74A /* AgentFeedbackView.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -270,6 +358,29 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB21F8A3C2994C9B92EFD6F4 /* VoiceIntent.swift in Sources */,
+				6BE807AABDA243B0ACC3ECEB /* ActionResult.swift in Sources */,
+				916B15CAA1A94C0CA0325617 /* ActionRouter.swift in Sources */,
+				C13063550320488DAE9E3A0A /* AgentPipeline.swift in Sources */,
+				7584D11CC65D4E1798F6B928 /* WorkflowEngine.swift in Sources */,
+				BAADC46DDB4142FEBA275D32 /* ActionProtocol.swift in Sources */,
+				F8E2664B9FF94BA5B8AD03D4 /* DictateAction.swift in Sources */,
+				036222096F7B48E69C5790EB /* TransformAction.swift in Sources */,
+				5AACC08F9C4A4C79AD1EE0A1 /* SearchAction.swift in Sources */,
+				AF67992658614EF4B05A33B7 /* OpenAction.swift in Sources */,
+				569C1867BF444EA88F7592B5 /* ReplyAction.swift in Sources */,
+				19020948163F444196ED64C3 /* SummarizeAction.swift in Sources */,
+				320E9AECB9B847B9A87BA1C0 /* CreateAction.swift in Sources */,
+				A3D91CDC6B114BFCBDD8AFD9 /* AppContext.swift in Sources */,
+				CB79436B558248C6982881B9 /* ContextReader.swift in Sources */,
+				7DC36D2FCB9A4C54BF409DCF /* IntentClassifier.swift in Sources */,
+				A523863474194FC9861714FA /* HeuristicClassifier.swift in Sources */,
+				74E054EA25D94F70A81FCBC8 /* AppleScriptBridge.swift in Sources */,
+				B865072C25DA4E1CB4198E4D /* BrowserIntegration.swift in Sources */,
+				27145B8018164BE0B76E7A54 /* MailIntegration.swift in Sources */,
+				CC4E10018E0744E8ACB4E82D /* NotesIntegration.swift in Sources */,
+				AE465068645C4C8FBFEE5C44 /* CalendarIntegration.swift in Sources */,
+				3E00812FAF444E05878C74B9 /* AgentFeedbackView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -431,7 +542,7 @@
 				CODE_SIGN_ENTITLEMENTS = Talk/Talk.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = QD4JZG5C85;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -466,7 +577,7 @@
 				CODE_SIGN_ENTITLEMENTS = Talk/Talk.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = QD4JZG5C85;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -498,7 +609,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = QD4JZG5C85;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
@@ -519,7 +630,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = QD4JZG5C85;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
@@ -539,7 +650,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = QD4JZG5C85;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
@@ -558,7 +669,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = QD4JZG5C85;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;

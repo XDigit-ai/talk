@@ -140,8 +140,8 @@ struct MenuBarView: View {
             return "Permissions required"
         }
         let simple = HotkeyManager.shared.simpleHotkey.description
-        let advanced = HotkeyManager.shared.advancedHotkey.description
-        return "\(simple) = Simple, \(advanced) = Advanced"
+        let agent = HotkeyManager.shared.agentHotkey.description
+        return "\(simple) = Dictate, \(agent) = Agent"
     }
 
     // MARK: - Mode Section
