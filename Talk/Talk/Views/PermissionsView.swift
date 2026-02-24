@@ -68,9 +68,7 @@ struct PermissionsView: View {
                         dismiss()
                         // Show registration if not already registered
                         if !UserRegistrationService.shared.isRegistered {
-                            if let appDelegate = NSApp.delegate as? AppDelegate {
-                                appDelegate.showRegistration()
-                            }
+                            AppDelegate.shared?.showRegistration()
                         }
                     } label: {
                         Text("Get Started")

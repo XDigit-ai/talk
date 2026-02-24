@@ -27,9 +27,26 @@ class AgentPipeline: ObservableObject {
 
     private func registerIntegrations() {
         router.registerIntegration(BrowserIntegration.shared)
-        router.registerIntegration(MailIntegration.shared)
+
+        // Register mail integration under all known email client bundle IDs
+        let mail = MailIntegration.shared
+        router.registerIntegration(mail, additionalBundleIds: [
+            "com.readdle.SparkDesktop.appstore",  // Spark Desktop (App Store)
+            "com.readdle.SparkDesktop",           // Spark Desktop (direct download)
+            "com.readdle.smartemail-macos",       // Spark Classic
+            "com.microsoft.Outlook"               // Outlook
+        ])
+        router.registerEmailIntegration(mail)
+
         router.registerIntegration(NotesIntegration.shared)
-        router.registerIntegration(CalendarIntegration.shared)
+
+        let calendar = CalendarIntegration.shared
+        router.registerIntegration(calendar)
+        router.registerCalendarIntegration(calendar)
+
+        let messages = MessagesIntegration.shared
+        router.registerIntegration(messages)
+        router.registerMessageIntegration(messages)
     }
 
     // MARK: - Main Pipeline
@@ -37,19 +54,22 @@ class AgentPipeline: ObservableObject {
     /// Process a transcription through the full agent pipeline.
     /// Returns an ActionResult indicating what happened.
     func process(transcription: String) async throws -> ActionResult {
-        defer { currentStep = .idle }
+        debugLog("Pipeline started, transcription='\(transcription)'")
 
         // Step 1: Read context
         currentStep = .readingContext
         let context = ContextReader.readCurrentContext()
+        debugLog("Context: app=\(context.appName) bundle=\(context.bundleIdentifier)")
 
         // Step 2: Classify intent
         currentStep = .classifying
         let intent: VoiceIntent
         do {
             intent = try await IntentClassifier.shared.classify(transcription, context: context)
+            debugLog("Classification result: action=\(intent.action) confidence=\(intent.confidence) content='\(intent.content)'")
         } catch {
             // If classification fails, fall back to dictation
+            debugLog("Classification FAILED: \(error.localizedDescription) — falling back to dictation")
             let fallback = VoiceIntent.dictation(from: transcription)
             return try await executeIntent(fallback, context: context)
         }
@@ -59,11 +79,13 @@ class AgentPipeline: ObservableObject {
         // Step 3: Check confidence threshold
         if intent.confidence < confidenceThreshold {
             // Low confidence — fall back to dictation
+            debugLog("Low confidence \(intent.confidence) < \(confidenceThreshold) — falling back to dictation")
             let fallback = VoiceIntent.dictation(from: transcription)
             return try await executeIntent(fallback, context: context)
         }
 
         // Step 4: Execute
+        debugLog("Executing intent action=\(intent.action) content='\(intent.content)'")
         return try await executeIntent(intent, context: context)
     }
 
@@ -74,16 +96,43 @@ class AgentPipeline: ObservableObject {
         do {
             result = try await router.route(intent: intent, context: context)
         } catch {
+            debugLog("Execution ERROR: \(error.localizedDescription)")
             result = .failure(ActionFailure(
                 message: error.localizedDescription,
                 error: error,
                 isRecoverable: false
             ))
         }
+        if case .failure(let f) = result {
+            debugLog("Execution FAILED: \(f.message)")
+        }
 
         lastResult = result
         currentStep = .complete(result.isSuccess)
+
+        // Keep .complete visible for a moment before resetting to idle
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run { self.currentStep = .idle }
+        }
+
+        debugLog("Pipeline complete, success=\(result.isSuccess)")
         return result
+    }
+
+    // MARK: - Debug
+
+    private func debugLog(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let line = "[\(timestamp)] [AgentPipeline] \(message)\n"
+        let path = "/tmp/dictai_agent.log"
+        if let handle = FileHandle(forWritingAtPath: path) {
+            handle.seekToEndOfFile()
+            handle.write(line.data(using: .utf8)!)
+            handle.closeFile()
+        } else {
+            try? line.write(toFile: path, atomically: true, encoding: .utf8)
+        }
     }
 }
 

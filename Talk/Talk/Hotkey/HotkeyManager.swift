@@ -44,8 +44,14 @@ class HotkeyManager: ObservableObject {
            let hotkey = HotkeyType(rawValue: savedValue) {
             self.agentHotkey = hotkey
         } else {
+            // Default: Right Option for agent mode
             self.agentHotkey = .rightOption
+            UserDefaults.standard.set(HotkeyType.rightOption.rawValue, forKey: "agentHotkey")
         }
+        // Clean up legacy key
+        UserDefaults.standard.removeObject(forKey: "advancedHotkey")
+
+        NSLog("[HotkeyManager] init: simpleHotkey=\(self.simpleHotkey.rawValue) agentHotkey=\(self.agentHotkey.rawValue)")
 
         // Observe UserDefaults changes for sync across instances
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
@@ -100,6 +106,9 @@ class HotkeyManager: ObservableObject {
         // Check both hotkeys
         let simplePressed = isHotkeyActive(hotkey: simpleHotkey, flags: flags, keyCode: keyCode)
         let agentPressed = isHotkeyActive(hotkey: agentHotkey, flags: flags, keyCode: keyCode)
+
+        // Debug: log every flag change to file
+        debugLogHotkey("keyCode=\(keyCode) simple=\(simplePressed) agent=\(agentPressed) simpleHK=\(simpleHotkey.rawValue) agentHK=\(agentHotkey.rawValue) flags=\(flags.rawValue)")
 
         // Determine which mode's hotkey is active (simple takes priority, then agent)
         let newMode: ProcessingMode? = simplePressed ? .simple : (agentPressed ? .agent : nil)
@@ -180,6 +189,14 @@ class HotkeyManager: ObservableObject {
 
     private func startRecording(processingMode: ProcessingMode) {
         guard !isRecording else { return }
+
+        // Safety: if previous processing is stuck, force-clear state so new recording can start
+        if AppState.shared.isProcessing {
+            NSLog("[HotkeyManager] Clearing stale processing state before new recording")
+            AppState.shared.isProcessing = false
+            AppState.shared.currentSessionMode = nil
+        }
+
         isRecording = true
         AppState.shared.startRecording(withMode: processingMode)
     }
@@ -189,6 +206,21 @@ class HotkeyManager: ObservableObject {
         isRecording = false
         recordingMode = nil
         AppState.shared.stopRecording()
+    }
+
+    // MARK: - Debug Logging
+
+    private func debugLogHotkey(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let line = "[\(timestamp)] \(message)\n"
+        let path = "/tmp/dictai_hotkey.log"
+        if let handle = FileHandle(forWritingAtPath: path) {
+            handle.seekToEndOfFile()
+            handle.write(line.data(using: .utf8)!)
+            handle.closeFile()
+        } else {
+            try? line.write(toFile: path, atomically: true, encoding: .utf8)
+        }
     }
 }
 

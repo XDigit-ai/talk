@@ -63,6 +63,7 @@
 		9ED7CDA7428941B88954E54D /* NotesIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesIntegration.swift; sourceTree = "<group>"; };
 		0E995CC896FE424E9FC06A09 /* CalendarIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarIntegration.swift; sourceTree = "<group>"; };
 		F064F72AE7B44FF08528A74A /* AgentFeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFeedbackView.swift; sourceTree = "<group>"; };
+		2D8F7BAA43954849B8AF9C77 /* AgentOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentOverlayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -205,6 +206,7 @@
 			isa = PBXGroup;
 			children = (
 				F064F72AE7B44FF08528A74A /* AgentFeedbackView.swift */,
+				2D8F7BAA43954849B8AF9C77 /* AgentOverlayView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -539,18 +541,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Talk/Talk.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Talk/Talk-Pro.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = QD4JZG5C85;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "DictAI needs calendar access to create events from voice commands.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "DictAI needs microphone access to record your voice for transcription.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -586,6 +589,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "DictAI needs calendar access to create events from voice commands.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "DictAI needs microphone access to record your voice for transcription.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

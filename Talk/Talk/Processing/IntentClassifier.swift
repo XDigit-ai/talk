@@ -30,6 +30,15 @@ class IntentClassifier {
                 return VoiceIntent.dictation(from: transcription)
             }
 
+            // Safety net: if LLM says "dictate" but text contains strong action keywords,
+            // try the heuristic classifier which may catch it
+            if intent.action == .dictate {
+                let heuristic = HeuristicClassifier.shared.classify(transcription)
+                if heuristic.action != .dictate {
+                    return heuristic
+                }
+            }
+
             return intent
         } catch {
             return HeuristicClassifier.shared.classify(transcription)

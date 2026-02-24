@@ -27,26 +27,76 @@ class OpenAction: ActionHandler {
             ))
         }
 
-        // Try to open as an application using AppleScript
+        // Try to find and open as an application via NSWorkspace (non-blocking)
         let appName = target
-        let script = NSAppleScript(source: "tell application \"\(appName)\" to activate")
-        var errorInfo: NSDictionary?
-        script?.executeAndReturnError(&errorInfo)
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appName) {
+            // Found by bundle ID
+            let config = NSWorkspace.OpenConfiguration()
+            try await NSWorkspace.shared.openApplication(at: appURL, configuration: config)
+            return .success(ActionSuccess(
+                message: "Opened \(appName)",
+                shouldPaste: false,
+                metadata: ["app": appName]
+            ))
+        }
 
-        if let errorInfo = errorInfo {
-            let errorMessage = errorInfo[NSAppleScript.errorMessage] as? String ?? "Unknown error"
+        // Try to find by name in /Applications and ~/Applications
+        if let appURL = findApplication(named: appName) {
+            let config = NSWorkspace.OpenConfiguration()
+            try await NSWorkspace.shared.openApplication(at: appURL, configuration: config)
+            return .success(ActionSuccess(
+                message: "Opened \(appName)",
+                shouldPaste: false,
+                metadata: ["app": appName]
+            ))
+        }
+
+        // Last resort: use open command (non-blocking, handles fuzzy app names)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", appName]
+        let pipe = Pipe()
+        process.standardError = pipe
+        try process.run()
+        process.waitUntilExit()
+
+        if process.terminationStatus == 0 {
+            return .success(ActionSuccess(
+                message: "Opened \(appName)",
+                shouldPaste: false,
+                metadata: ["app": appName]
+            ))
+        } else {
+            let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
+            let errorMessage = String(data: errorData, encoding: .utf8) ?? "App not found"
             return .failure(ActionFailure(
                 message: "Could not open \(appName): \(errorMessage)",
-                error: ActionError.executionFailed(errorMessage),
                 isRecoverable: true,
                 suggestion: "Make sure the app name is correct and the app is installed"
             ))
         }
+    }
 
-        return .success(ActionSuccess(
-            message: "Opened \(appName)",
-            shouldPaste: false,
-            metadata: ["app": appName]
-        ))
+    private func findApplication(named name: String) -> URL? {
+        let searchDirs = [
+            "/Applications",
+            "/System/Applications",
+            NSHomeDirectory() + "/Applications",
+            "/Applications/Utilities"
+        ]
+
+        let targetName = name.lowercased()
+
+        for dir in searchDirs {
+            guard let contents = try? FileManager.default.contentsOfDirectory(atPath: dir) else { continue }
+            for item in contents where item.hasSuffix(".app") {
+                let appNameWithoutExt = item.replacingOccurrences(of: ".app", with: "").lowercased()
+                if appNameWithoutExt == targetName || appNameWithoutExt.contains(targetName) {
+                    return URL(fileURLWithPath: dir).appendingPathComponent(item)
+                }
+            }
+        }
+
+        return nil
     }
 }

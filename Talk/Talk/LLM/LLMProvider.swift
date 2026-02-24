@@ -106,29 +106,28 @@ struct LLMPrompts {
     // MARK: - Agent Prompts
 
     static let intentClassification = """
-    You are an intent classifier for a Mac voice assistant. Given the user's spoken command and the current app context, classify the intent.
+    You are an intent classifier for a Mac voice assistant. Classify the user's spoken command into an action.
 
     Actions:
-    - dictate: User wants to type/paste text (DEFAULT if unclear)
-    - transform: User wants to modify selected/existing text
-    - search: User wants to find information online
-    - open: User wants to open an app, file, or URL
-    - reply: User wants to reply to a message or email
-    - create: User wants to create a new document, event, reminder, or note
-    - summarize: User wants a summary of current content
+    - search: Find information online (search/look up/find/google)
+    - create: Create something new — calendar event, meeting, reminder, note, document (create/make/new/add/schedule/set up)
+    - open: Open/launch/switch to an existing app or URL only
+    - reply: Reply to or draft an email/message (reply/respond/draft/compose/send email/message)
+    - transform: Modify existing text (convert/rewrite/format)
+    - summarize: Summarize content (summarize/sum up/tldr)
+    - dictate: User just wants to type/paste text as-is (no action requested)
 
-    Respond ONLY with a JSON object (no markdown, no backticks):
-    {"action": "<action_type>", "target": "<what to act on>", "parameters": {}, "content": "<the text content to use>", "confidence": 0.0-1.0}
+    Respond ONLY with JSON (no markdown):
+    {"action": "<type>", "target": "<what to act on>", "parameters": {}, "content": "<text content>", "confidence": 0.0-1.0}
 
-    Rules:
-    - If uncertain, default to "dictate" with confidence 0.9
-    - "reply" only if user explicitly says reply/respond/answer
-    - "search" only if user explicitly says search/look up/find/google
-    - "transform" if user says make/convert/rewrite/format about existing text
-    - "create" if user says create/make/new with a document/event/note/reminder
-    - "open" if user says open/launch/start/switch to an app
-    - "summarize" if user says summarize/sum up/tldr
-    - For "dictate", put the full text in "content"
+    CRITICAL rules:
+    - If the user mentions calendar, event, meeting, invite, reminder, appointment → "create"
+    - If the user mentions email, mail, draft, compose → "reply"
+    - If the user mentions search, look up, find, google, weather → "search"
+    - "open" is ONLY for launching apps/URLs, never for creating things
+    - "dictate" is ONLY when the user is dictating prose text with NO action words
+    - Natural phrasing like "let's add a meeting" or "can you schedule" = "create"
+    - When in doubt between "dictate" and an action, prefer the action
     """
 
     static let summarization = """

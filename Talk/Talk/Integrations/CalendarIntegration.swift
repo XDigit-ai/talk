@@ -13,7 +13,7 @@ class CalendarIntegration: AppIntegration {
     private var accessGranted = false
 
     var isAvailable: Bool {
-        accessGranted
+        true  // Always available — will request access on demand
     }
 
     private init() {
@@ -23,9 +23,13 @@ class CalendarIntegration: AppIntegration {
     // MARK: - AppIntegration
 
     func execute(intent: VoiceIntent, context: AppContext) async throws -> ActionResult {
+        // Request access on demand if not yet granted
+        if !accessGranted {
+            await requestAccess()
+        }
         guard accessGranted else {
             return .failure(ActionFailure(
-                message: "Calendar access not granted",
+                message: "Calendar access not granted. Please grant access in System Settings > Privacy & Security > Calendars, then try again.",
                 isRecoverable: true,
                 suggestion: "Grant calendar access in System Settings > Privacy & Security > Calendars"
             ))
@@ -52,9 +56,12 @@ class CalendarIntegration: AppIntegration {
     func requestAccess() async {
         if #available(macOS 14.0, *) {
             do {
-                accessGranted = try await eventStore.requestFullAccessToEvents()
+                let granted = try await eventStore.requestFullAccessToEvents()
+                accessGranted = granted
+                debugLog("requestFullAccessToEvents returned: \(granted)")
             } catch {
                 accessGranted = false
+                debugLog("requestFullAccessToEvents ERROR: \(error)")
             }
         } else {
             let granted = await withCheckedContinuation { continuation in
@@ -63,6 +70,24 @@ class CalendarIntegration: AppIntegration {
                 }
             }
             accessGranted = granted
+            debugLog("requestAccess(to: .event) returned: \(granted)")
+        }
+
+        // Also check current authorization status
+        let status = EKEventStore.authorizationStatus(for: .event)
+        debugLog("Authorization status: \(status.rawValue) (0=notDetermined, 1=restricted, 2=denied, 3=authorized, 4=fullAccess, 5=writeOnly)")
+    }
+
+    private func debugLog(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let line = "[\(timestamp)] [Calendar] \(message)\n"
+        let path = "/tmp/dictai_agent.log"
+        if let handle = FileHandle(forWritingAtPath: path) {
+            handle.seekToEndOfFile()
+            handle.write(line.data(using: .utf8)!)
+            handle.closeFile()
+        } else {
+            try? line.write(toFile: path, atomically: true, encoding: .utf8)
         }
     }
 

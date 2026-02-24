@@ -66,6 +66,10 @@ class OllamaService: ObservableObject, LLMProviderProtocol {
     // MARK: - Generation
 
     func generate(text: String, systemPrompt: String) async throws -> String {
+        // Retry connection check if not connected (init check may not have completed)
+        if !isConnected {
+            await checkConnection()
+        }
         guard isConnected else {
             throw LLMError.connectionFailed
         }

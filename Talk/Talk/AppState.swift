@@ -98,7 +98,11 @@ class AppState: ObservableObject {
     // MARK: - Recording Control
 
     func startRecording(withMode mode: ProcessingMode? = nil) {
-        guard !isRecording else { return }
+        debugLog("startRecording called, mode=\(mode?.rawValue ?? "nil"), isRecording=\(isRecording)")
+        guard !isRecording else {
+            debugLog("startRecording BLOCKED - already recording")
+            return
+        }
 
         isRecording = true
         recordingDuration = 0
@@ -124,9 +128,8 @@ class AppState: ObservableObject {
         }
 
         // Show recording panel
-        if let appDelegate = NSApp.delegate as? AppDelegate {
-            appDelegate.showRecordingPanel()
-        }
+        debugLog("Showing recording panel")
+        AppDelegate.shared?.showRecordingPanel()
     }
 
     func stopRecording() {
@@ -147,9 +150,15 @@ class AppState: ObservableObject {
             return
         }
 
-        // Hide recording panel
-        if let appDelegate = NSApp.delegate as? AppDelegate {
-            appDelegate.hideRecordingPanel()
+        // Hide recording panel (unless agent mode — keep it visible for status)
+        let activeMode = currentSessionMode ?? processingMode
+        if activeMode != .agent {
+            if let appDelegate = AppDelegate.shared {
+                appDelegate.hideRecordingPanel()
+            }
+        } else {
+            // Set processing flag immediately so MiniRecorderView shows agent UI without a gap
+            isProcessing = true
         }
 
         // Process the audio
@@ -167,7 +176,7 @@ class AppState: ObservableObject {
 
         Recorder.shared.cancelRecording()
 
-        if let appDelegate = NSApp.delegate as? AppDelegate {
+        if let appDelegate = AppDelegate.shared {
             appDelegate.hideRecordingPanel()
         }
     }
@@ -210,9 +219,10 @@ class AppState: ObservableObject {
                 processingStatus = "Enhancing with AI..."
                 processedText = try await AIEnhancementService.shared.enhance(transcription)
             case .agent:
-                // Route to Agent Pipeline
-                processingStatus = "Classifying intent..."
+                // Route to Agent Pipeline (recording panel stays visible showing agent steps)
+                processingStatus = "Processing..."
                 let result = try await AgentPipeline.shared.process(transcription: transcription)
+
                 switch result {
                 case .success(let success):
                     if let text = success.resultText, success.shouldPaste {
@@ -224,10 +234,14 @@ class AppState: ObservableObject {
                         isProcessing = false
                         currentSessionMode = nil
                         if playSoundFeedback { SoundManager.shared.playSuccessSound() }
+                        // Hide panel after brief delay so user sees "Done"
+                        hideRecordingPanelAfterDelay()
                         try? FileManager.default.removeItem(at: url)
                         return
                     }
                 case .failure(let failure):
+                    // Hide panel and throw
+                    hideRecordingPanelAfterDelay()
                     throw NSError(domain: "Agent", code: 1, userInfo: [NSLocalizedDescriptionKey: failure.message])
                 }
             }
@@ -241,7 +255,11 @@ class AppState: ObservableObject {
 
             processingStatus = ""
             isProcessing = false
+            let wasAgent = (activeMode == .agent)
             currentSessionMode = nil  // Clear session mode
+
+            // Hide agent panel after paste
+            if wasAgent { hideRecordingPanelAfterDelay() }
 
             // Play success sound
             if playSoundFeedback {
@@ -253,6 +271,9 @@ class AppState: ObservableObject {
             lastError = error.localizedDescription
             isProcessing = false
             currentSessionMode = nil  // Clear session mode
+
+            // Hide agent panel on error
+            hideRecordingPanelAfterDelay()
 
             if playSoundFeedback {
                 SoundManager.shared.playErrorSound()
@@ -273,6 +294,16 @@ class AppState: ObservableObject {
         try? FileManager.default.removeItem(at: url)
     }
 
+    // MARK: - Panel Helpers
+
+    private func hideRecordingPanelAfterDelay() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if let appDelegate = AppDelegate.shared {
+                appDelegate.hideRecordingPanel()
+            }
+        }
+    }
+
     // MARK: - Formatted Duration
 
     var formattedDuration: String {
@@ -280,5 +311,20 @@ class AppState: ObservableObject {
         let seconds = Int(recordingDuration) % 60
         let tenths = Int((recordingDuration.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%d:%02d.%d", minutes, seconds, tenths)
+    }
+
+    // MARK: - Debug
+
+    private func debugLog(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let line = "[\(timestamp)] [AppState] \(message)\n"
+        let path = "/tmp/dictai_appstate.log"
+        if let handle = FileHandle(forWritingAtPath: path) {
+            handle.seekToEndOfFile()
+            handle.write(line.data(using: .utf8)!)
+            handle.closeFile()
+        } else {
+            try? line.write(toFile: path, atomically: true, encoding: .utf8)
+        }
     }
 }

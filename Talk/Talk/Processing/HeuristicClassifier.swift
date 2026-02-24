@@ -13,13 +13,14 @@ class HeuristicClassifier {
     private init() {
         let definitions: [(String, ActionType)] = [
             ("^(?:search|look up|find|google)\\s+(?:for\\s+)?(.+)", .search),
-            ("^(?:open|launch|start|switch to)\\s+(.+)", .open),
             ("^(?:draft|write|compose|send)\\s+(?:an?\\s+)?(?:email|mail|message)\\s+(?:to\\s+)?(.+)", .reply),
             ("^(?:email|mail)\\s+(.+)", .reply),
             ("^(?:reply|respond|answer)\\s+(?:saying|with|that)?\\s*(.+)", .reply),
-            ("^(?:create|make|new|add)\\s+(?:a\\s+)?(.+)", .create),
+            // Create BEFORE open — "start a new calendar invite" is create, not open
+            ("^(?:create|make|new|add|start|schedule|set up)\\s+(?:a\\s+)?(?:new\\s+)?(.+)", .create),
+            ("^(?:open|launch|switch to)\\s+(.+)", .open),
             ("^(?:summarize|sum up|give me a summary|tldr)\\s*(.+)?", .summarize),
-            ("^(?:make|convert|rewrite|format)\\s+(?:this|it|that)\\s+(.+)", .transform)
+            ("^(?:convert|rewrite|format)\\s+(?:this|it|that)\\s+(.+)", .transform)
         ]
 
         patterns = definitions.compactMap { (pattern, action) in
@@ -53,6 +54,44 @@ class HeuristicClassifier {
                 target: extractTarget(for: pattern.action, from: content),
                 parameters: extractParameters(for: pattern.action, from: content, rawText: trimmed),
                 content: content,
+                rawText: text,
+                confidence: 0.8
+            )
+        }
+
+        // Secondary: check for action keywords anywhere in the text (not just at start)
+        let lower = trimmed.lowercased()
+        let calendarKeywords = ["calendar", "event", "meeting", "invite", "appointment", "schedule"]
+        if calendarKeywords.contains(where: { lower.contains($0) }) {
+            return VoiceIntent(
+                action: .create,
+                target: nil,
+                parameters: [:],
+                content: trimmed,
+                rawText: text,
+                confidence: 0.8
+            )
+        }
+
+        let searchKeywords = ["search for", "look up", "google", "find out"]
+        if searchKeywords.contains(where: { lower.contains($0) }) {
+            return VoiceIntent(
+                action: .search,
+                target: nil,
+                parameters: [:],
+                content: trimmed,
+                rawText: text,
+                confidence: 0.8
+            )
+        }
+
+        let emailKeywords = ["email", "mail to", "draft", "compose"]
+        if emailKeywords.contains(where: { lower.contains($0) }) {
+            return VoiceIntent(
+                action: .reply,
+                target: nil,
+                parameters: extractParameters(for: .reply, from: trimmed, rawText: trimmed),
+                content: trimmed,
                 rawText: text,
                 confidence: 0.8
             )
