@@ -133,11 +133,15 @@ class AppState: ObservableObject {
     }
 
     func stopRecording() {
-        guard isRecording else { return }
+        guard isRecording else {
+            debugLog("stopRecording BLOCKED - not recording")
+            return
+        }
 
         isRecording = false
         recordingTimer?.invalidate()
         recordingTimer = nil
+        debugLog("stopRecording called, duration=\(recordingDuration)")
 
         // Play stop sound
         if playSoundFeedback {
@@ -147,8 +151,10 @@ class AppState: ObservableObject {
         // Stop audio recording and get audio data
         guard let audioURL = Recorder.shared.stopRecording() else {
             processingStatus = "Recording failed"
+            debugLog("stopRecording FAILED - no audio URL returned")
             return
         }
+        debugLog("stopRecording got audioURL=\(audioURL.lastPathComponent)")
 
         // Hide recording panel (unless agent mode — keep it visible for status)
         let activeMode = currentSessionMode ?? processingMode
@@ -189,11 +195,17 @@ class AppState: ObservableObject {
 
         // Use session mode if set (from hotkey), otherwise use default setting
         let activeMode = currentSessionMode ?? processingMode
+        debugLog("processAudio start: mode=\(activeMode.rawValue) modelLoaded=\(WhisperState.shared.isModelLoaded) url=\(url.lastPathComponent)")
+
+        // Check file exists and size
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+        debugLog("processAudio audioFile size=\(fileSize) bytes")
 
         do {
             // Transcribe with Whisper
             let transcription = try await WhisperState.shared.transcribe(audioURL: url)
             lastTranscription = transcription
+            debugLog("processAudio transcription='\(transcription.prefix(100))'")
 
             // Apply processing based on mode
             let processedText: String
@@ -201,6 +213,7 @@ class AppState: ObservableObject {
             case .simple:
                 processingStatus = "Cleaning up..."
                 processedText = SimpleCleanupProcessor.shared.process(transcription)
+                debugLog("processAudio simple processed='\(processedText.prefix(100))'")
             case .advanced:
                 // Check if LLM is configured before attempting enhancement
                 if !AIEnhancementService.shared.isConfigured {
@@ -247,10 +260,12 @@ class AppState: ObservableObject {
             }
 
             lastProcessedText = processedText
+            debugLog("processAudio lastProcessedText set, length=\(processedText.count)")
 
             // Paste at cursor
             processingStatus = "Pasting..."
             let textToPaste = autoAddTrailingSpace ? processedText + " " : processedText
+            debugLog("processAudio pasting: sandboxed=\(CursorPaster.isSandboxed) axTrusted=\(AXIsProcessTrusted()) textLen=\(textToPaste.count)")
             CursorPaster.paste(textToPaste, preserveClipboard: preserveClipboard)
 
             processingStatus = ""
@@ -267,6 +282,7 @@ class AppState: ObservableObject {
             }
 
         } catch {
+            debugLog("processAudio ERROR: \(error)")
             processingStatus = "Error: \(error.localizedDescription)"
             lastError = error.localizedDescription
             isProcessing = false

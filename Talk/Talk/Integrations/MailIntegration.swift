@@ -9,7 +9,7 @@ class MailIntegration: AppIntegration {
     let displayName = "Mail"
     let supportedActions: [ActionType] = [.reply, .create, .summarize]
 
-    var isAvailable: Bool { true }  // We always have a way to send email (Gmail, mailto:, etc.)
+    var isAvailable: Bool { true }  // mailto: always works
 
     private init() {}
 
@@ -24,8 +24,8 @@ class MailIntegration: AppIntegration {
                 let subject = intent.parameters["subject"] ?? ""
                 return try await composeNew(to: to, subject: subject, body: body)
             }
-            // Otherwise reply to the selected email in Mail
-            return try await replyToSelected(body: intent.content)
+            // No recipient — generate reply text and paste it
+            return try await generateReplyText(body: intent.content)
 
         case .create:
             let to = intent.parameters["to"] ?? ""
@@ -44,112 +44,12 @@ class MailIntegration: AppIntegration {
     }
 
     func readContext() async throws -> [String: String] {
-        guard let info = try await getSelectedEmailInfo() else { return [:] }
-        return info
-    }
-
-    // MARK: - Email Delivery Strategy
-
-    /// Determines the best way to compose an email:
-    /// 1. If Gmail is open in a browser tab → use Gmail compose URL
-    /// 2. Otherwise → use mailto: URL (opens the user's default mail app, e.g. Spark)
-    private enum ComposeStrategy {
-        case gmail(browserBundleId: String)
-        case defaultMailApp
-    }
-
-    private func detectComposeStrategy() -> ComposeStrategy {
-        // Check running browsers for Gmail tabs
-        let browserBundleIds = [
-            "com.google.Chrome",
-            "com.brave.Browser",
-            "com.apple.Safari",
-            "com.microsoft.edgemac",
-            "com.vivaldi.Vivaldi"
-        ]
-
-        for bid in browserBundleIds {
-            guard NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == bid }) else {
-                continue
-            }
-            if let url = BrowserIntegration.shared.getCurrentURL(bundleId: bid),
-               url.contains("mail.google.com") {
-                return .gmail(browserBundleId: bid)
-            }
-        }
-
-        return .defaultMailApp
+        return [:]
     }
 
     // MARK: - Mail Actions
 
-    /// Get info about the currently selected email in Mail.app.
-    func getSelectedEmailInfo() async throws -> [String: String]? {
-        let script = """
-        tell application "Mail"
-            set selMsgs to selected messages of message viewer 1
-            if (count of selMsgs) is 0 then return ""
-            set msg to item 1 of selMsgs
-            set msgSender to sender of msg
-            set msgSubject to subject of msg
-            set msgDate to date received of msg as string
-            return msgSender & "|||" & msgSubject & "|||" & msgDate
-        end tell
-        """
-        guard let result = try await AppleScriptBridge.execute(script),
-              !result.isEmpty else {
-            return nil
-        }
-
-        let parts = result.components(separatedBy: "|||")
-        guard parts.count >= 3 else { return nil }
-
-        return [
-            "sender": parts[0],
-            "subject": parts[1],
-            "date": parts[2]
-        ]
-    }
-
-    /// Reply to the currently selected email with the given body text.
-    func replyToSelected(body: String) async throws -> ActionResult {
-        // Enhance the body text for email formatting
-        let enhancedBody = try await AIEnhancementService.shared.enhance(
-            body,
-            prompt: LLMPrompts.emailReply
-        )
-
-        let script = """
-        tell application "Mail"
-            set selMsgs to selected messages of message viewer 1
-            if (count of selMsgs) is 0 then
-                return "NO_SELECTION"
-            end if
-            set msg to item 1 of selMsgs
-            set replyMsg to reply msg
-            tell replyMsg
-                set content to "\(enhancedBody.escapedForAppleScript)" & content
-            end tell
-            activate
-        end tell
-        """
-
-        let result = try await AppleScriptBridge.execute(script)
-        if result == "NO_SELECTION" {
-            return .failure(ActionFailure(
-                message: "No email selected in Mail",
-                isRecoverable: true,
-                suggestion: "Select an email in Mail.app first"
-            ))
-        }
-
-        return .success(ActionSuccess(
-            message: "Reply drafted in Mail",
-            metadata: ["action": "reply"]
-        ))
-    }
-
-    /// Compose a new email. Checks for Gmail in browser first, then falls back to default mail app.
+    /// Compose a new email via mailto: — opens the user's default mail app (Spark, Outlook, etc.)
     func composeNew(to: String, subject: String, body: String) async throws -> ActionResult {
         // Use LLM to draft a proper email from the voice description
         var emailBody = body
@@ -170,49 +70,20 @@ class MailIntegration: AppIntegration {
             }
         }
 
-        let strategy = detectComposeStrategy()
-
-        switch strategy {
-        case .gmail(let browserBundleId):
-            return try await composeViaGmail(to: to, subject: emailSubject, body: emailBody, browserBundleId: browserBundleId)
-        case .defaultMailApp:
-            return composeViaMailto(to: to, subject: emailSubject, body: emailBody)
-        }
-    }
-
-    /// Compose via Gmail in the browser that already has it open.
-    private func composeViaGmail(to: String, subject: String, body: String, browserBundleId: String) async throws -> ActionResult {
-        var components = URLComponents(string: "https://mail.google.com/mail/")!
-        components.queryItems = [
-            URLQueryItem(name: "view", value: "cm"),
-            URLQueryItem(name: "to", value: to),
-            URLQueryItem(name: "su", value: subject),
-            URLQueryItem(name: "body", value: body)
-        ]
-
-        guard let url = components.url else {
-            return composeViaMailto(to: to, subject: subject, body: body)
-        }
-
-        let appName = BrowserIntegration.shared.appNameForBundleId(browserBundleId)
-        let script = "tell application \"\(appName)\" to open location \"\(url.absoluteString.escapedForAppleScript)\""
-        try await AppleScriptBridge.execute(script)
-
-        return .success(ActionSuccess(
-            message: "Email drafted to \(to) in Gmail",
-            metadata: ["to": to, "subject": subject, "via": "gmail"]
-        ))
-    }
-
-    /// Compose via mailto: URL — opens the user's default mail app (Spark, Outlook, etc.)
-    private func composeViaMailto(to: String, subject: String, body: String) -> ActionResult {
+        // Build mailto: URL — macOS routes this to the user's default mail app
         var components = URLComponents()
         components.scheme = "mailto"
         components.path = to
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: body)
-        ]
+        var queryItems: [URLQueryItem] = []
+        if !emailSubject.isEmpty {
+            queryItems.append(URLQueryItem(name: "subject", value: emailSubject))
+        }
+        if !emailBody.isEmpty {
+            queryItems.append(URLQueryItem(name: "body", value: emailBody))
+        }
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
 
         guard let url = components.url else {
             return .failure(ActionFailure(
@@ -225,34 +96,46 @@ class MailIntegration: AppIntegration {
 
         return .success(ActionSuccess(
             message: "Email drafted to \(to)",
-            metadata: ["to": to, "subject": subject, "via": "default_mail_app"]
+            metadata: ["to": to, "subject": emailSubject]
         ))
     }
 
-    /// Summarize the currently selected email thread using LLM.
-    func summarizeSelectedThread() async throws -> ActionResult {
-        let script = """
-        tell application "Mail"
-            set selMsgs to selected messages of message viewer 1
-            if (count of selMsgs) is 0 then return "NO_SELECTION"
-            set msg to item 1 of selMsgs
-            set msgContent to content of msg
-            set msgSubject to subject of msg
-            set msgSender to sender of msg
-            return "From: " & msgSender & "\\nSubject: " & msgSubject & "\\n\\n" & msgContent
-        end tell
-        """
-
-        let result = try await AppleScriptBridge.execute(script)
-        if result == nil || result == "NO_SELECTION" {
+    /// Generate reply text using LLM and return it for pasting
+    private func generateReplyText(body: String) async throws -> ActionResult {
+        guard !body.isEmpty else {
             return .failure(ActionFailure(
-                message: "No email selected to summarize",
+                message: "No reply content provided",
                 isRecoverable: true,
-                suggestion: "Select an email in Mail.app first"
+                suggestion: "Say what you want to reply with"
             ))
         }
 
-        let truncated = String(result!.prefix(4000))
+        let enhancedBody = try await AIEnhancementService.shared.enhance(
+            body,
+            prompt: LLMPrompts.emailReply
+        )
+
+        return .success(ActionSuccess(
+            message: "Reply drafted",
+            resultText: enhancedBody,
+            shouldPaste: true
+        ))
+    }
+
+    /// Summarize selected text as an email summary using LLM.
+    func summarizeSelectedThread() async throws -> ActionResult {
+        // Try to get selected text from the current app
+        let selectedText = PasteEligibilityService.getSelectedText()
+
+        guard let text = selectedText, !text.isEmpty else {
+            return .failure(ActionFailure(
+                message: "No email content to summarize",
+                isRecoverable: true,
+                suggestion: "Select email text first, then ask to summarize"
+            ))
+        }
+
+        let truncated = String(text.prefix(4000))
         let summary = try await AIEnhancementService.shared.enhance(
             truncated,
             prompt: LLMPrompts.summarization

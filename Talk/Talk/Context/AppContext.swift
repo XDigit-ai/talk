@@ -66,7 +66,9 @@ struct AppContext {
     static let emailBundleIds: Set<String> = [
         "com.apple.mail",
         "com.microsoft.Outlook",
-        "com.readdle.smartemail-macos"  // Spark
+        "com.readdle.SparkDesktop.appstore",  // Spark Desktop (App Store)
+        "com.readdle.SparkDesktop",           // Spark Desktop (direct download)
+        "com.readdle.smartemail-macos"        // Spark Classic
     ]
 
     static let messagingBundleIds: Set<String> = [
